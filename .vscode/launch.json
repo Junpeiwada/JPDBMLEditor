@@ -1,0 +1,14 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Tauri Dev",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "echo 'Tauri dev started by preLaunchTask'; exit 0",
+      "cwd": "${workspaceFolder}",
+      "autoAttachChildProcesses": false,
+      "preLaunchTask": "tauri dev"
+    }
+  ]
+}

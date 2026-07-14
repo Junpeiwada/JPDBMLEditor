@@ -1,0 +1,86 @@
+# JPDBMLEditor
+
+[日本語版 README はこちら](README.ja.md)
+
+A desktop viewer / editor for [DBML](https://dbml.dbdiagram.io/home) (Database Markup Language), built with Tauri.
+
+![JPDBMLEditor screenshot](Docs/images/JPDBMLEditor.png)
+
+Existing VSCode extensions render ER diagrams poorly and the VSCode shell feels heavy for this purpose. JPDBMLEditor is a standalone, lightweight desktop app focused on making it comfortable to **view, arrange, and lightly edit** DBML files — while you keep using VSCode (or any editor) for full text editing.
+
+## Features
+
+- **Full ER diagram view** — parses `.dbml` with the official `@dbml/core` parser and renders all tables and relationships with automatic layout (ELK.js + React Flow).
+- **Search filtering** — an always-visible search field matches both table names and column names; matching columns are highlighted inside their tables.
+- **Neighborhood focus** — click a table to show only the tables connected to it via relationships, with an adjustable hop count (1 hop by default).
+- **Inline editing** — add, edit, move, and delete columns and notes directly on the diagram.
+- **Format-preserving minimal edits** — changes are applied as minimal text edits to the original source, preserving comments, ordering, and formatting instead of regenerating the whole file.
+- **Explicit save + unlimited Undo/Redo** — edits stay in memory until you save explicitly (Save button / Cmd+S). Undo/Redo via Cmd+Z / Cmd+Shift+Z.
+- **Manual reload** — no file watching; changes made externally (e.g. in VSCode) are pulled in with a reload button. A confirmation dialog guards against discarding unsaved edits.
+- **Layout sidecar file** — table positions and column widths are stored in a `foo.jpdbml.json` file next to the `.dbml`, so the DBML source itself is never polluted with visual state. If the sidecar is missing or broken, the app falls back to automatic layout.
+- **IME-aware inputs** — all text fields are carefully guarded for Japanese IME composition (Enter/Esc handling).
+
+## Tech Stack
+
+| Area | Choice |
+| --- | --- |
+| Shell | Tauri 2 + Vite + TypeScript |
+| UI | React 19 + MUI (toasts via notistack) |
+| DBML parser | `@dbml/core` |
+| Diagram | React Flow (`@xyflow/react`) + ELK.js auto layout |
+| E2E tests | Playwright (with Tauri IPC mock) |
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js ≥ 18
+- Rust toolchain (for Tauri)
+
+### Development
+
+```bash
+npm install
+
+# Run as a desktop app (recommended)
+npm run tauri dev
+
+# Frontend only (Vite dev server)
+npm run dev
+```
+
+### Build
+
+```bash
+npm run tauri build
+```
+
+### Tests
+
+```bash
+npm run test:e2e
+```
+
+## Project Structure
+
+```
+src/                 # Frontend (Vite + TS + React)
+├── parser/          # @dbml/core wrapper, internal model conversion
+├── graph/           # Adjacency graph, N-hop traversal
+├── layout/          # ELK.js auto layout
+├── view/            # React Flow nodes/edges, search UI, panels
+├── edit/            # Minimal-edit logic (format-preserving)
+└── meta/            # .jpdbml.json sidecar read/write
+src-tauri/           # Tauri (Rust: file I/O)
+e2e/                 # Playwright E2E tests
+Docs/                # Design documents (Japanese)
+SampleDBML/          # Local-only DBML samples for testing (gitignored, not included in the repo)
+```
+
+## Documentation
+
+Design documents live in [Docs/](Docs/) (written in Japanese), including the overall design ([全体設計.md](Docs/全体設計.md)), UI design ([UI設計.md](Docs/UI設計.md)), and the implementation plan ([実装計画.md](Docs/実装計画.md)).
+
+## License
+
+[MIT](LICENSE)

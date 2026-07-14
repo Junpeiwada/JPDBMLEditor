@@ -1,0 +1,45 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# TypeScript/Vite のビルド副産物（vite.config.ts のコンパイル出力など）
+*.tsbuildinfo
+/vite.config.js
+/vite.config.d.ts
+
+# 動作確認用の実データ DBML。手元には置くがリポジトリには含めない。
+/SampleDBML/
+
+# PerfOverlay(Cmd+Shift+R)が書き出すトレース結果。計測のたびに増える作業用ログ。
+/PerfLog/
+
+# Playwright(E2E)。テスト実行のたびに生成される成果物は追跡しない。
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+# 動作確認用に撮るスクリーンショット。spec を実行すればいつでも撮り直せるので追跡しない。
+/e2e/__screenshots__/
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

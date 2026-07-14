@@ -1,0 +1,38 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "cleanup tauri dev",
+      "type": "shell",
+      "command": "pkill -x jpdbmleditor 2>/dev/null; pkill -f '[.]bin/tauri dev' 2>/dev/null; lsof -ti:1420 | xargs kill 2>/dev/null; exit 0",
+      "presentation": {
+        "reveal": "silent",
+        "close": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "tauri dev",
+      "type": "shell",
+      "command": "npm run tauri dev",
+      "isBackground": true,
+      "dependsOn": "cleanup tauri dev",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      },
+      "problemMatcher": {
+        "owner": "tauri",
+        "pattern": {
+          "regexp": "^$"
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".*(Compiling|Running DevCommand|VITE).*",
+          "endsPattern": ".*(Running `target|Local:\\s+http).*"
+        }
+      }
+    }
+  ]
+}
