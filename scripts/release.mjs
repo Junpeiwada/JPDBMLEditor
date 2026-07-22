@@ -34,7 +34,10 @@ function fail(msg) {
 
 /** git を同期実行し、標準出力を文字列で返す。 */
 function git(args, opts = {}) {
-  return execFileSync('git', args, { cwd: root, encoding: 'utf8', ...opts }).trim();
+  // stdio:'inherit' の場合 execFileSync の戻り値は null（出力は端末へ直行）。
+  // その場合は空文字を返す（呼び出し側は戻り値を使わない push 等でのみ inherit を渡す）。
+  const out = execFileSync('git', args, { cwd: root, encoding: 'utf8', ...opts });
+  return out == null ? '' : out.trim();
 }
 
 function readCurrentVersion() {
