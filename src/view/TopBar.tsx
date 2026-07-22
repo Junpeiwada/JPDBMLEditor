@@ -22,6 +22,7 @@ import SaveIcon from '@mui/icons-material/Save';
 import UndoIcon from '@mui/icons-material/Undo';
 import RedoIcon from '@mui/icons-material/Redo';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import SystemUpdateAltIcon from '@mui/icons-material/SystemUpdateAlt';
 import type { ColorMode } from '../theme/theme';
 
 interface TopBarProps {
@@ -50,6 +51,10 @@ interface TopBarProps {
   onReload: () => void;
   /** 開いているファイルのフルパス(未オープンは null)。ファイル名表示に使う。 */
   filePath: string | null;
+  /** アプリのアップデートを手動でチェックする。 */
+  onCheckUpdate: () => void;
+  /** 更新チェック/ダウンロード中か(ボタンの無効化に使う)。 */
+  isCheckingUpdate: boolean;
 }
 
 export function TopBar({
@@ -66,6 +71,8 @@ export function TopBar({
   canRedo,
   onReload,
   filePath,
+  onCheckUpdate,
+  isCheckingUpdate,
 }: TopBarProps) {
   // 履歴メニューのアンカー要素(null=閉じている)。
   const [recentAnchorEl, setRecentAnchorEl] = useState<null | HTMLElement>(null);
@@ -174,13 +181,25 @@ export function TopBar({
           {isDirty ? ' *' : ''}
         </Typography>
 
+        <Tooltip title="アップデートを確認">
+          <span style={{ marginLeft: 'auto' }}>
+            <IconButton
+              onClick={onCheckUpdate}
+              size="small"
+              color="inherit"
+              aria-label="アップデートを確認"
+              disabled={isCheckingUpdate}
+            >
+              <SystemUpdateAltIcon />
+            </IconButton>
+          </span>
+        </Tooltip>
         <Tooltip title={colorMode === 'light' ? 'ダークテーマに切替' : 'ライトテーマに切替'}>
           <IconButton
             onClick={onToggleColorMode}
             size="small"
             color="inherit"
             aria-label="配色モードを切り替え"
-            sx={{ ml: 'auto' }}
           >
             {colorMode === 'light' ? <DarkModeIcon /> : <LightModeIcon />}
           </IconButton>

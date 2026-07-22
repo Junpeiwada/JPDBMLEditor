@@ -61,6 +61,44 @@ npm run tauri build
 npm run test:e2e
 ```
 
+## Releasing
+
+Releases are built by GitHub Actions ([.github/workflows/release.yml](.github/workflows/release.yml)).
+Pushing a tag that starts with `v` (e.g. `v0.1.0`) triggers builds for macOS
+(Apple Silicon + Intel) and Windows (NSIS `.exe`), and attaches the installers to a
+**draft** GitHub Release.
+
+```bash
+# bump the version in package.json, src-tauri/tauri.conf.json and src-tauri/Cargo.toml first
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+Then, on the GitHub Releases page, review the assets and **Publish** the draft. Before
+publishing, open `latest.json` and confirm it contains a `platforms` entry for **every** target
+(`darwin-aarch64`, `darwin-x86_64`, `windows-x86_64`) — the three build jobs run in parallel and
+write `latest.json` independently, so a missing entry means that platform will not receive the
+update.
+
+> **Auto-update requires a published release.** The updater fetches
+> `releases/latest/download/latest.json`, which only resolves for the latest *published*
+> release — a draft is invisible to it. Publishing is therefore mandatory for updates to
+> reach users.
+
+### Notes
+
+- **Code signing.** Builds are currently **unsigned** (no Apple Developer Program). On first
+  launch users will see a Gatekeeper / SmartScreen warning and must explicitly allow the app.
+  The workflow already contains a commented-out env block for Apple signing/notarization —
+  uncomment it and register the six `APPLE_*` secrets to enable it later.
+- **Update signing keys.** Auto-update artifacts are signed with a minisign key pair
+  (unrelated to Apple signing, and free). The **private** key lives in the
+  `TAURI_SIGNING_PRIVATE_KEY` GitHub secret; the matching **public** key is committed in
+  `src-tauri/tauri.conf.json` (`plugins.updater.pubkey`). These two must stay a pair — if they
+  drift, every client will reject updates with a signature error.
+- **Intel macOS** is cross-compiled on an Apple Silicon runner and is not routinely tested on
+  real Intel hardware.
+
 ## Project Structure
 
 ```

@@ -1,0 +1,94 @@
+name: Release
+
+# v で始まるタグ（例: v0.1.0）を push するとリリースビルドが走る
+on:
+  push:
+    tags:
+      - "v*"
+
+# tauri-action が GitHub Release を作成・更新するために必要
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Apple Silicon 向け macOS
+          - platform: macos-latest
+            target: aarch64-apple-darwin
+            args: "--target aarch64-apple-darwin"
+          # Intel 向け macOS
+          - platform: macos-latest
+            target: x86_64-apple-darwin
+            args: "--target x86_64-apple-darwin"
+          # Windows（updater 対応の NSIS(.exe) のみをビルドする）
+          - platform: windows-latest
+            target: x86_64-pc-windows-msvc
+            args: "--bundles nsis"
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      # Rust ビルドキャッシュ（src-tauri をキー対象に含める）
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build and release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # --- 自動アップデート用の署名鍵（minisign）---
+          # tauri.conf.json の createUpdaterArtifacts:true により、ビルド時に各成果物へ
+          # 署名し latest.json を生成する。この 2 つの Secret は登録済み。
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # --- macOS コード署名・公証 ---
+          # 現在は未署名でリリースする（Apple Developer Program 未登録のため）。
+          # 将来 Apple Developer Program に登録し、Developer ID Application 証明書を
+          # 用意して以下の 6 つの Secret をリポジトリに登録したら、この env ブロックの
+          # コメントを外すだけで署名・公証が有効になる。
+          #   APPLE_CERTIFICATE:          # .p12 を base64 化した文字列
+          #   APPLE_CERTIFICATE_PASSWORD: # 上記 .p12 のパスワード
+          #   APPLE_SIGNING_IDENTITY:     # 例: Developer ID Application: Name (TEAMID)
+          #   APPLE_ID:                   # Apple ID のメールアドレス
+          #   APPLE_PASSWORD:             # App 用パスワード
+          #   APPLE_TEAM_ID:              # 10 桁のチーム ID
+          # APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          # APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          # APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          # APPLE_ID: ${{ secrets.APPLE_ID }}
+          # APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          # APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        with:
+          # タグ名をそのままリリースタグに使う
+          tagName: ${{ github.ref_name }}
+          releaseName: "JPDBMLEditor ${{ github.ref_name }}"
+          releaseBody: "詳細は各アセットのインストーラを参照してください。"
+          # 下書きで作成する。全 OS のビルドが揃ったのを確認してから GitHub 上で
+          # 「Publish release」する運用。
+          # 注意: 自動アップデートは releases/latest/download/latest.json を参照するため、
+          # 下書きのままだと更新は配信されない。Publish して初めて更新チェックがヒットする。
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}

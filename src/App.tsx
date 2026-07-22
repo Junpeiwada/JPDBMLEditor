@@ -16,6 +16,7 @@ import { useDerivedModelViews } from "./view/useDerivedModelViews";
 import { useColumnEditSession } from "./view/useColumnEditSession";
 import { useCameraFocus } from "./view/useCameraFocus";
 import { useGlobalShortcuts } from "./view/useGlobalShortcuts";
+import { useAppUpdater } from "./view/useAppUpdater";
 import { DiscardGuardDialog } from "./view/DiscardGuardDialog";
 import { DeleteColumnDialog } from "./view/DeleteColumnDialog";
 import { PerfOverlay } from "./perf/PerfOverlay";
@@ -168,6 +169,9 @@ function AppContent({ colorMode, onToggleColorMode }: { colorMode: ColorMode; on
   // useDerivedModelViews に集約する。
   const { visibleTableIds, focusOriginId, typeOptions } = useDerivedModelViews(model, viewMode);
 
+  // 自動アップデート(メニューからの手動チェック + 起動時自動チェック)は useAppUpdater に集約する。
+  const { checkForUpdatesManually, isCheckingUpdate } = useAppUpdater();
+
   return (
     <Box
       sx={{
@@ -203,6 +207,8 @@ function AppContent({ colorMode, onToggleColorMode }: { colorMode: ColorMode; on
         canRedo={canRedo}
         onReload={handleReload}
         filePath={filePath}
+        onCheckUpdate={checkForUpdatesManually}
+        isCheckingUpdate={isCheckingUpdate}
       />
       <Box sx={{ flex: 1, display: "flex", minHeight: 0 }}>
         <SidePanel

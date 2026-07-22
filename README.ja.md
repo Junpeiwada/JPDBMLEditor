@@ -61,6 +61,38 @@ npm run tauri build
 npm run test:e2e
 ```
 
+## リリース
+
+リリースは GitHub Actions（[.github/workflows/release.yml](.github/workflows/release.yml)）でビルドする。
+`v` で始まるタグ（例: `v0.1.0`）を push すると、macOS（Apple Silicon + Intel）と Windows（NSIS `.exe`）を
+ビルドし、成果物を **下書き（draft）** の GitHub Release に添付する。
+
+```bash
+# 先に package.json / src-tauri/tauri.conf.json / src-tauri/Cargo.toml のバージョンを上げる
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+その後、GitHub の Releases ページで成果物を確認し、下書きを **Publish（公開）** する。公開前に
+`latest.json` を開き、**全ターゲット**（`darwin-aarch64` / `darwin-x86_64` / `windows-x86_64`）の
+`platforms` エントリが揃っているか確認すること。3 つのビルドジョブは並行実行され `latest.json` を
+それぞれ書き込むため、エントリが欠けているとそのプラットフォームには更新が届かない。
+
+> **自動アップデートには公開が必須。** updater は `releases/latest/download/latest.json` を参照するが、
+> これは「最新の**公開済み**リリース」しか指さない（下書きは見えない）。公開して初めて更新が配信される。
+
+### 補足
+
+- **コード署名**: 現状はビルドを**未署名**で配布する（Apple Developer Program 未登録のため）。初回起動時に
+  Gatekeeper / SmartScreen の警告が出るので、ユーザーが明示的に許可する必要がある。ワークフローには Apple
+  署名・公証用の env ブロックがコメントアウトで用意済み。将来登録したら、コメントを外して 6 つの `APPLE_*`
+  シークレットを登録すれば有効になる。
+- **アップデート署名鍵**: 自動アップデートの成果物は minisign の鍵ペアで署名する（Apple 署名とは無関係で無料）。
+  **秘密鍵**は GitHub シークレット `TAURI_SIGNING_PRIVATE_KEY`、対になる**公開鍵**は
+  `src-tauri/tauri.conf.json`（`plugins.updater.pubkey`）にコミットしてある。この 2 つは必ず対で保つこと。
+  ずれると全クライアントが署名検証エラーで更新を拒否する。
+- **Intel 版 macOS** は Apple Silicon ランナー上でクロスビルドしており、実機での動作確認は行っていない。
+
 ## ディレクトリ構成
 
 ```

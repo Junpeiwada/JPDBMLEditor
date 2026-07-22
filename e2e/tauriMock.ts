@@ -18,6 +18,13 @@ export interface TauriMockInit {
   files?: Record<string, string>;
   /** dialog|open が返すパス。省略/null なら「キャンセル」(null を返す)。 */
   dialogPath?: string | null;
+  /**
+   * 自動アップデートの応答。
+   *  - 省略/null: 更新なし(plugin:updater|check が null を返す)。
+   *  - { version }: その版の「更新あり」を返す(トースト表示までの検証用。
+   *    実ダウンロード/再起動はモックの再現範囲外)。
+   */
+  updateAvailable?: { version: string } | null;
 }
 
 export interface MockState {
@@ -29,6 +36,8 @@ export interface MockState {
 declare global {
   interface Window {
     __mockState: MockState;
+    /** isTauri() の判定フラグ。updater 経路のテストでのみ true にする。 */
+    isTauri?: boolean;
   }
 }
 
@@ -40,8 +49,16 @@ export async function installTauriMock(page: Page, init: TauriMockInit = {}): Pr
   await page.addInitScript((initArg: TauriMockInit) => {
     const files: Record<string, string> = { ...(initArg.files ?? {}) };
     const dialogPath = initArg.dialogPath ?? null;
+    const updateAvailable = initArg.updateAvailable ?? null;
     const state: MockState = { files, calls: [] };
     window.__mockState = state;
+
+    // isTauri() は window.isTauri フラグで判定する(__TAURI_INTERNALS__ の有無ではない)。
+    // updater の経路を検証するテストのみ、明示的に updateAvailable キーを渡したときに Tauri と
+    // 見なす。未指定の既存テストは従来どおり「非 Tauri」で updater を呼ばない。
+    if ('updateAvailable' in initArg) {
+      window.isTauri = true;
+    }
 
     const internals = (window.__TAURI_INTERNALS__ = window.__TAURI_INTERNALS__ ?? {});
 
@@ -135,6 +152,22 @@ export async function installTauriMock(page: Page, init: TauriMockInit = {}): Pr
           return 1;
 
         case 'plugin:fs|unwatch':
+          return null;
+
+        // 自動アップデート。updateAvailable の有無で「更新あり/なし」を切り替える。
+        // 実際のダウンロード/再起動は実 Tauri ランタイム前提のため再現しない。
+        case 'plugin:updater|check':
+          // Update は metadata が truthy なら生成される。rid はリソースIDでダミー値でよい。
+          return updateAvailable
+            ? { rid: 99, available: true, version: updateAvailable.version, currentVersion: '0.0.0' }
+            : null;
+        // Update.close() は Resource.close() 経由でこのコマンドを呼ぶ。「後で」経路の観測に使う。
+        case 'plugin:resources|close':
+          return null;
+        // 「今すぐ更新」経路: downloadAndInstall はこのコマンドを呼ぶ(進捗チャネルは無視で即完了扱い)。
+        case 'plugin:updater|download_and_install':
+          return null;
+        case 'plugin:process|restart':
           return null;
 
         default:

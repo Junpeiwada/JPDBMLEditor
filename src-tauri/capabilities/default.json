@@ -17,6 +17,9 @@
     "fs:allow-watch",
     "fs:allow-unwatch",
     "window-state:default",
+    "updater:default",
+    "process:default",
+    "process:allow-restart",
     {
       "identifier": "fs:scope",
       "allow": ["**"]
