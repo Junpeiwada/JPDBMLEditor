@@ -12,6 +12,19 @@
       "problemMatcher": []
     },
     {
+      "label": "release",
+      "detail": "バージョンを尋ねてタグを push し、リリースビルドを起動する",
+      "type": "shell",
+      "command": "npm run release",
+      "presentation": {
+        "reveal": "always",
+        "focus": true,
+        "panel": "dedicated",
+        "clear": true
+      },
+      "problemMatcher": []
+    },
+    {
       "label": "tauri dev",
       "type": "shell",
       "command": "npm run tauri dev",

@@ -58,6 +58,9 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # フロントのバンドルが大きく(約18MB)、既定の Node ヒープ上限では beforeBuildCommand
+          # (`npm run build`)が macOS ランナーで OOM する。ヒープ上限を引き上げる。
+          NODE_OPTIONS: --max-old-space-size=4096
           # --- 自動アップデート用の署名鍵（minisign）---
           # tauri.conf.json の createUpdaterArtifacts:true により、ビルド時に各成果物へ
           # 署名し latest.json を生成する。この 2 つの Secret は登録済み。
