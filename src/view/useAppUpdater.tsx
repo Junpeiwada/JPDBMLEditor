@@ -1,5 +1,5 @@
 // 自動アップデート（デスクトップのみ）。
-// - メニュー(TopBar)の更新ボタンから手動チェック
+// - ツールバー(TopBar)の更新ボタン、およびネイティブメニュー「ヘルプ→アップデートを確認」から手動チェック
 // - 起動時に一度だけ自動チェック（バックグラウンド）
 //
 // updater プラグインは Tauri ランタイム上でのみ動く。`npm run dev` の素のブラウザや
@@ -9,8 +9,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Button from '@mui/material/Button';
 import { useSnackbar, type SnackbarKey } from 'notistack';
 import { isTauri } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import { check, type Update } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
+
+// Rust 側（lib.rs の EVENT_CHECK_UPDATE）と一致させる。ネイティブメニュークリックで飛んでくる。
+const MENU_CHECK_UPDATE_EVENT = 'menu://check-update';
 
 /** 手動チェック時のユーザーへの結果通知の粒度。 */
 type CheckOptions = {
@@ -142,7 +146,7 @@ export function useAppUpdater() {
     [applyUpdate, closeSnackbar, enqueueSnackbar, releaseLock],
   );
 
-  // メニュー（TopBar）から呼ぶ手動チェック。結果は常に通知する。
+  // ツールバーのボタン / ネイティブメニューから呼ぶ手動チェック。結果は常に通知する。
   const checkForUpdatesManually = useCallback(() => {
     void runCheck({ notifyWhenUpToDate: true });
   }, [runCheck]);
@@ -156,6 +160,20 @@ export function useAppUpdater() {
     didAutoCheck.current = true;
     void runCheck({ notifyWhenUpToDate: false });
   }, [runCheck]);
+
+  // ネイティブメニュー「ヘルプ→アップデートを確認」クリックを受けて手動チェックを走らせる。
+  // 非 Tauri 環境（ブラウザ/テスト）では listen しない。
+  // 注: listen 登録は非同期のため、登録完了より前にメニューを押すとその 1 回は取りこぼす
+  // （emit はキューされない）。実害は小さく、再クリックで復帰する。
+  useEffect(() => {
+    if (!isTauri()) return;
+    const unlistenPromise = listen(MENU_CHECK_UPDATE_EVENT, () => {
+      checkForUpdatesManually();
+    });
+    return () => {
+      void unlistenPromise.then((unlisten) => unlisten());
+    };
+  }, [checkForUpdatesManually]);
 
   return { checkForUpdatesManually, isCheckingUpdate: busy };
 }
