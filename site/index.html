@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JPDBMLEditor — DBML を見る・整える・軽く編集する</title>
+<meta name="description" content="DBML（Database Markup Language）のデスクトップビューア/エディタ。ER 図を自動レイアウトで描き、検索で絞り込み、書式を保ったまま軽く編集できます。macOS / Windows 対応・無料。">
+<link rel="icon" href="images/icon.png">
+<meta property="og:title" content="JPDBMLEditor">
+<meta property="og:description" content="DBML のデスクトップビューア/エディタ。ER 図を自動レイアウトで描き、書式を保ったまま軽く編集できます。">
+<meta property="og:image" content="images/screenshot.png">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F7FAF9;
+    --surface:#FFFFFF;
+    --ink:#0F2E2A;
+    --ink-soft:#4A6763;
+    --accent:#0D9681;
+    --accent-deep:#087263;
+    --cyan:#40C9E7;
+    --line:#D9E5E2;
+    --display:"Outfit",-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
+    --body:"Inter",-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
+    --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0;background:var(--bg);color:var(--ink);
+    font-family:var(--body);font-size:16px;line-height:1.75;
+    -webkit-font-smoothing:antialiased;
+  }
+  /* width/height 属性を持つ画像が縦に伸びないよう height は必ず auto にする */
+  img{max-width:100%;height:auto;display:block}
+  a{color:var(--accent-deep)}
+  .wrap{width:100%;max-width:1120px;margin:0 auto;padding:0 24px}
+
+  /* ---------- top bar ---------- */
+  .bar{
+    position:sticky;top:0;z-index:50;
+    background:rgba(247,250,249,.88);backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--line);
+  }
+  .bar-in{display:flex;align-items:center;gap:14px;height:64px}
+  .bar-in img{width:30px;height:30px;aspect-ratio:1;border-radius:7px}
+  .bar-name{font-family:var(--display);font-weight:600;font-size:17px;letter-spacing:-.01em}
+  .bar-sp{flex:1}
+  .bar-link{
+    font-family:var(--mono);font-size:12.5px;text-decoration:none;
+    color:var(--ink-soft);padding:7px 13px;border:1px solid var(--line);
+    border-radius:7px;background:var(--surface);transition:.18s;
+  }
+  .bar-link:hover{color:var(--accent-deep);border-color:var(--accent)}
+
+  /* ---------- hero ---------- */
+  .hero{padding:76px 0 8px}
+  .eyebrow{
+    font-family:var(--mono);font-size:12px;font-weight:500;letter-spacing:.13em;
+    text-transform:uppercase;color:var(--accent-deep);margin:0 0 20px;
+    display:flex;align-items:center;gap:9px;
+  }
+  .eyebrow::before{content:"";width:26px;height:2px;background:var(--accent);border-radius:2px}
+  h1{
+    font-family:var(--display);font-weight:700;
+    font-size:clamp(2.2rem,5.8vw,4.15rem);line-height:1.1;
+    letter-spacing:-.033em;margin:0 0 22px;
+  }
+  /* 日本語は語中で折り返さない。行の切れ目は明示的に制御する */
+  h1 .l{display:block;white-space:nowrap}
+  h1 em{font-style:normal;color:var(--accent)}
+  .lede{font-size:clamp(1.02rem,1.9vw,1.2rem);color:var(--ink-soft);max-width:52ch;margin:0 0 20px}
+  .lede strong{color:var(--ink);font-weight:600}
+
+  /* ---------- signature: DBML -> ER ---------- */
+  .sig{
+    margin:40px 0 0;border:1px solid var(--line);border-radius:16px;
+    background:var(--surface);overflow:hidden;
+    box-shadow:0 1px 2px rgba(15,46,42,.04),0 14px 40px -22px rgba(15,46,42,.16);
+  }
+  .sig-head{
+    display:flex;align-items:center;gap:8px;padding:11px 16px;
+    border-bottom:1px solid var(--line);background:#FBFDFC;
+  }
+  .sig-head span{font-family:var(--mono);font-size:11.5px;color:var(--ink-soft);letter-spacing:.04em}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--line)}
+  .dot.on{background:var(--accent)}
+  .sig-body{display:grid;grid-template-columns:1fr 1fr;min-height:270px}
+  .sig-src{
+    padding:22px 20px;border-right:1px solid var(--line);
+    font-family:var(--mono);font-size:13px;line-height:2.05;
+    white-space:pre;overflow-x:auto;color:var(--ink-soft);
+  }
+  .sig-src .k{color:var(--accent-deep);font-weight:700}
+  .sig-src .t{color:var(--ink);font-weight:500}
+  .sig-src .n{color:#93A9A5}
+  .sig-src .r{color:var(--cyan);font-weight:700;filter:saturate(1.3) brightness(.82)}
+  .sig-er{position:relative;padding:26px 22px;display:flex;flex-direction:column;justify-content:center;gap:34px;background:
+    radial-gradient(circle at 1px 1px,var(--line) 1px,transparent 0) 0 0/17px 17px}
+  .card{
+    position:relative;z-index:2;background:var(--surface);border:1px solid var(--line);
+    border-radius:9px;overflow:hidden;width:min(205px,74%);
+    box-shadow:0 5px 16px -8px rgba(15,46,42,.22);
+  }
+  .card.b{align-self:flex-end}
+  .card-t{
+    background:var(--ink);color:#fff;font-family:var(--mono);
+    font-size:11px;padding:5px 10px;letter-spacing:.03em;
+  }
+  .card-r{
+    display:flex;justify-content:space-between;gap:12px;padding:5px 10px;
+    font-family:var(--mono);font-size:11.5px;border-top:1px solid #EEF4F2;
+  }
+  .card-r b{font-weight:500;color:var(--ink)}
+  .card-r i{font-style:normal;color:#9AAFAB}
+  .card-r.pk b{color:var(--accent-deep)}
+  .sig-er svg{position:absolute;inset:0;width:100%;height:100%;z-index:3;overflow:visible;pointer-events:none}
+  .flow{
+    stroke:var(--accent);stroke-width:1.8;fill:none;
+    stroke-dasharray:5 4;animation:dash 1.1s linear infinite;
+  }
+  .flow-dot{fill:var(--accent)}
+  @keyframes dash{to{stroke-dashoffset:-18}}
+  @media(prefers-reduced-motion:reduce){.flow{animation:none}}
+  /* 参照元/参照先のカラム行を強調（FK 線の接続点） */
+  .card-r.fk b{color:var(--accent-deep);font-weight:700}
+  .card-r.fk{background:rgba(13,150,129,.05)}
+
+  /* ---------- download ---------- */
+  .dl{padding:82px 0 12px}
+  .dl-h{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:8px}
+  h2{
+    font-family:var(--display);font-weight:600;font-size:clamp(1.55rem,3.4vw,2.15rem);
+    letter-spacing:-.024em;margin:0;line-height:1.2;
+  }
+  .ver{
+    font-family:var(--mono);font-size:12.5px;color:var(--accent-deep);
+    background:rgba(13,150,129,.09);border:1px solid rgba(13,150,129,.22);
+    padding:3px 10px;border-radius:20px;
+  }
+  .sub{color:var(--ink-soft);margin:0 0 30px;max-width:60ch}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .os{
+    background:var(--surface);border:1px solid var(--line);border-radius:14px;
+    padding:24px 22px 22px;display:flex;flex-direction:column;
+    transition:border-color .2s,box-shadow .2s,transform .2s;
+  }
+  .os:hover{border-color:rgba(13,150,129,.45);box-shadow:0 12px 30px -20px rgba(15,46,42,.3);transform:translateY(-2px)}
+  .os-ico{color:var(--ink);margin-bottom:14px}
+  .os-ico svg{width:26px;height:26px;display:block}
+  .os-n{font-family:var(--display);font-weight:600;font-size:1.09rem;margin:0 0 3px;letter-spacing:-.01em}
+  .os-d{font-family:var(--mono);font-size:11.5px;color:var(--ink-soft);margin:0 0 20px;line-height:1.6}
+  .btn{
+    margin-top:auto;display:flex;align-items:center;justify-content:center;gap:9px;
+    background:var(--accent);color:#fff;text-decoration:none;font-weight:600;font-size:.94rem;
+    padding:13px 16px;border-radius:9px;transition:background .18s;font-family:var(--body);
+  }
+  .btn:hover{background:var(--accent-deep)}
+  .btn svg{width:15px;height:15px;flex:none}
+  .os-f{font-family:var(--mono);font-size:10.5px;color:#9AAFAB;margin:10px 0 0;text-align:center;
+    word-break:break-all;min-height:1.5em}
+  .dl-note{
+    margin:22px 0 0;font-size:13.5px;color:var(--ink-soft);
+    display:flex;gap:10px;align-items:flex-start;
+  }
+  .dl-note svg{width:16px;height:16px;flex:none;margin-top:4px;color:var(--accent)}
+
+  /* ---------- shot ---------- */
+  .shot{padding:82px 0 0}
+  .shot-f{
+    margin-top:32px;border:1px solid var(--line);border-radius:14px;overflow:hidden;
+    background:var(--surface);box-shadow:0 2px 4px rgba(15,46,42,.04),0 26px 60px -34px rgba(15,46,42,.4);
+  }
+  .shot-cap{
+    font-family:var(--mono);font-size:11.5px;color:var(--ink-soft);
+    text-align:center;margin:16px 0 0;
+  }
+
+  /* ---------- features ---------- */
+  .feat{padding:86px 0 0}
+  .grid-f{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);
+    border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-top:32px}
+  .f{background:var(--surface);padding:26px 24px 28px}
+  .f-tag{
+    font-family:var(--mono);font-size:11px;color:var(--accent-deep);
+    letter-spacing:.05em;margin:0 0 11px;
+  }
+  .f-n{font-family:var(--display);font-weight:600;font-size:1.06rem;margin:0 0 8px;letter-spacing:-.012em}
+  .f-p{margin:0;font-size:14.2px;color:var(--ink-soft);line-height:1.72}
+  .f-p code{font-family:var(--mono);font-size:.9em;background:#F1F7F5;padding:1px 5px;border-radius:4px;color:var(--ink)}
+
+  /* ---------- first run ---------- */
+  .first{padding:86px 0 0}
+  .warn{
+    margin-top:30px;border:1px solid var(--line);border-radius:14px;background:var(--surface);
+    overflow:hidden;
+  }
+  .warn-top{
+    padding:16px 22px;background:#FFFDF5;border-bottom:1px solid #F0E9D2;
+    font-size:14px;color:#6B5A20;display:flex;gap:11px;align-items:flex-start;
+  }
+  .warn-top svg{width:17px;height:17px;flex:none;margin-top:3px;color:#C9A227}
+  .steps{display:grid;grid-template-columns:1fr 1fr}
+  .step{padding:24px 24px 26px}
+  .step+.step{border-left:1px solid var(--line)}
+  .step-h{display:flex;align-items:center;gap:10px;margin:0 0 14px}
+  .step-h svg{width:19px;height:19px;color:var(--ink)}
+  .step-h b{font-family:var(--display);font-weight:600;font-size:1.02rem}
+  ol{margin:0;padding-left:20px;font-size:14.2px;color:var(--ink-soft);line-height:1.8}
+  ol li+li{margin-top:7px}
+  ol kbd{
+    font-family:var(--mono);font-size:11.5px;background:#F1F7F5;border:1px solid var(--line);
+    border-bottom-width:2px;border-radius:5px;padding:1px 6px;color:var(--ink);white-space:nowrap;
+  }
+  .step em{font-style:normal;color:var(--ink);font-weight:600}
+
+  /* ---------- foot ---------- */
+  footer{margin-top:90px;border-top:1px solid var(--line);padding:32px 0 46px}
+  .foot{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  .foot img{width:24px;height:24px;aspect-ratio:1;border-radius:6px}
+  .foot p{margin:0;font-family:var(--mono);font-size:12px;color:var(--ink-soft)}
+  .foot-sp{flex:1}
+  .foot a{font-family:var(--mono);font-size:12px;color:var(--ink-soft);text-decoration:none}
+  .foot a:hover{color:var(--accent-deep)}
+
+  :focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:4px}
+
+  @media(max-width:900px){
+    .grid3,.grid-f{grid-template-columns:1fr 1fr}
+    .grid-f .f:last-child{grid-column:1/-1}
+  }
+  @media(max-width:720px){
+    .hero{padding-top:52px}
+    .sig-body{grid-template-columns:1fr}
+    .sig-src{border-right:none;border-bottom:1px solid var(--line)}
+    .grid3,.grid-f,.steps{grid-template-columns:1fr}
+    .step+.step{border-left:none;border-top:1px solid var(--line)}
+    .grid-f .f:last-child{grid-column:auto}
+    .dl,.shot,.feat,.first{padding-top:62px}
+  }
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <div class="wrap bar-in">
+    <img src="images/icon.png" alt="">
+    <span class="bar-name">JPDBMLEditor</span>
+    <span class="bar-sp"></span>
+    <a class="bar-link" href="https://github.com/Junpeiwada/JPDBMLEditor">GitHub</a>
+  </div>
+</div>
+
+<header class="hero wrap">
+  <p class="eyebrow">DBML Viewer / Editor</p>
+  <h1><span class="l">DBML を、</span><span class="l"><em>そのまま</em>読める形に。</span></h1>
+  <p class="lede">
+    <strong>.dbml</strong> を開くと、テーブルとリレーションが自動レイアウトの ER 図になります。
+    検索で絞り込み、つながりだけを追い、書式を壊さずに軽く直す。テキスト編集は使い慣れたエディタのままで。
+  </p>
+
+  <div class="sig">
+    <div class="sig-head">
+      <span class="dot on"></span><span class="dot"></span><span class="dot"></span>
+      <span>schema.dbml</span>
+    </div>
+    <div class="sig-body">
+      <div class="sig-src"><span class="k">Table</span> <span class="t">users</span> {
+  id <span class="k">int</span> [pk]
+  name <span class="k">varchar</span>
+  <span class="n">// ユーザーマスタ</span>
+}
+
+<span class="k">Table</span> <span class="t">orders</span> {
+  id <span class="k">int</span> [pk]
+  user_id <span class="k">int</span>
+}
+
+<span class="r">Ref</span>: orders.user_id &gt; users.id</div>
+      <div class="sig-er" id="er">
+        <svg aria-hidden="true" id="er-svg"><path class="flow" id="er-path" d=""/></svg>
+        <div class="card">
+          <div class="card-t">users</div>
+          <div class="card-r pk fk" id="to-id"><b>id</b><i>int</i></div>
+          <div class="card-r"><b>name</b><i>varchar</i></div>
+        </div>
+        <div class="card b">
+          <div class="card-t">orders</div>
+          <div class="card-r pk"><b>id</b><i>int</i></div>
+          <div class="card-r fk" id="from-uid"><b>user_id</b><i>int</i></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<section class="dl wrap" id="download">
+  <div class="dl-h">
+    <h2>ダウンロード</h2>
+    <span class="ver" id="ver">最新版</span>
+  </div>
+  <p class="sub">お使いの OS を選んでください。インストール後は起動時に更新を確認し、自動でアップデートします。</p>
+
+  <div class="grid3">
+    <div class="os">
+      <div class="os-ico"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.05 12.54c.02-2.3 1.87-3.4 1.95-3.45-1.06-1.56-2.71-1.77-3.3-1.8-1.4-.14-2.74.82-3.45.82-.72 0-1.82-.8-2.99-.78-1.54.02-2.96.9-3.75 2.27-1.6 2.78-.41 6.9 1.15 9.16.76 1.1 1.67 2.34 2.87 2.3 1.15-.05 1.58-.75 2.97-.75 1.38 0 1.77.74 2.98.72 1.23-.02 2.02-1.12 2.78-2.23.87-1.27 1.23-2.5 1.25-2.57-.03-.01-2.4-.92-2.43-3.66zM14.8 5.4c.63-.77 1.06-1.83.94-2.9-.91.04-2.02.61-2.68 1.37-.58.68-1.1 1.77-.96 2.81 1.02.08 2.06-.52 2.7-1.28z"/></svg></div>
+      <p class="os-n">macOS</p>
+      <p class="os-d">Apple Silicon<br>M1 / M2 / M3 / M4</p>
+      <a class="btn" id="btn-arm" href="https://github.com/Junpeiwada/JPDBMLEditor/releases/latest">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13m0 0l-4.5-4.5M12 16l4.5-4.5M4 20h16"/></svg>
+        ダウンロード
+      </a>
+      <p class="os-f" id="f-arm">.dmg</p>
+    </div>
+
+    <div class="os">
+      <div class="os-ico"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.05 12.54c.02-2.3 1.87-3.4 1.95-3.45-1.06-1.56-2.71-1.77-3.3-1.8-1.4-.14-2.74.82-3.45.82-.72 0-1.82-.8-2.99-.78-1.54.02-2.96.9-3.75 2.27-1.6 2.78-.41 6.9 1.15 9.16.76 1.1 1.67 2.34 2.87 2.3 1.15-.05 1.58-.75 2.97-.75 1.38 0 1.77.74 2.98.72 1.23-.02 2.02-1.12 2.78-2.23.87-1.27 1.23-2.5 1.25-2.57-.03-.01-2.4-.92-2.43-3.66zM14.8 5.4c.63-.77 1.06-1.83.94-2.9-.91.04-2.02.61-2.68 1.37-.58.68-1.1 1.77-.96 2.81 1.02.08 2.06-.52 2.7-1.28z"/></svg></div>
+      <p class="os-n">macOS</p>
+      <p class="os-d">Intel<br>Intel 搭載 Mac</p>
+      <a class="btn" id="btn-x64" href="https://github.com/Junpeiwada/JPDBMLEditor/releases/latest">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13m0 0l-4.5-4.5M12 16l4.5-4.5M4 20h16"/></svg>
+        ダウンロード
+      </a>
+      <p class="os-f" id="f-x64">.dmg</p>
+    </div>
+
+    <div class="os">
+      <div class="os-ico"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5.5l7.5-1v7.2H3V5.5zm0 13l7.5 1v-7.1H3v6.1zM11.4 4.3L21 3v8.7h-9.6V4.3zm0 8.4H21V21l-9.6-1.3v-7z"/></svg></div>
+      <p class="os-n">Windows</p>
+      <p class="os-d">64bit<br>インストーラ (NSIS)</p>
+      <a class="btn" id="btn-win" href="https://github.com/Junpeiwada/JPDBMLEditor/releases/latest">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13m0 0l-4.5-4.5M12 16l4.5-4.5M4 20h16"/></svg>
+        ダウンロード
+      </a>
+      <p class="os-f" id="f-win">.exe</p>
+    </div>
+  </div>
+
+  <p class="dl-note">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.6v.1"/></svg>
+    <span>Mac の種類が分からないときは、アップルメニュー →「この Mac について」を開いてください。「チップ」に Apple M… と書かれていれば Apple Silicon 版です。無料・MIT ライセンスで公開しています。</span>
+  </p>
+</section>
+
+<section class="shot wrap">
+  <h2>画面</h2>
+  <div class="shot-f"><img src="images/screenshot.png" alt="JPDBMLEditor の画面。左に検索フィールドとテーブル一覧、中央に自動レイアウトされた ER 図が表示されている。" width="2069" height="1141"></div>
+  <p class="shot-cap">13 テーブル / 25 リレーションの在庫管理スキーマを表示した例</p>
+</section>
+
+<section class="feat wrap">
+  <h2>できること</h2>
+  <div class="grid-f">
+    <div class="f">
+      <p class="f-tag">Table / Ref</p>
+      <p class="f-n">全体 ER 図</p>
+      <p class="f-p">公式パーサ <code>@dbml/core</code> でパースし、全テーブルとリレーションを ELK.js の自動レイアウトで描きます。手で並べ直す必要はありません。</p>
+    </div>
+    <div class="f">
+      <p class="f-tag">検索</p>
+      <p class="f-n">絞り込み</p>
+      <p class="f-p">テーブル名とカラム名の両方を検索します。カラムが一致したときは、テーブル内の該当カラムをハイライトします。</p>
+    </div>
+    <div class="f">
+      <p class="f-tag">N ホップ</p>
+      <p class="f-n">近傍フォーカス</p>
+      <p class="f-p">テーブルをクリックすると、リレーションでつながるテーブルだけを残します。たどる深さは画面から変更できます。</p>
+    </div>
+    <div class="f">
+      <p class="f-tag">最小編集</p>
+      <p class="f-n">書式を保つ</p>
+      <p class="f-p">全体を書き出し直さず、変更した箇所だけを元のテキストに反映します。コメント・並び順・インデントはそのまま残ります。</p>
+    </div>
+    <div class="f">
+      <p class="f-tag">Cmd+S / Cmd+Z</p>
+      <p class="f-n">明示保存と Undo</p>
+      <p class="f-p">編集はメモリ上に保ち、保存したときだけファイルに書き込みます。Undo / Redo は回数の上限なしで戻れます。</p>
+    </div>
+    <div class="f">
+      <p class="f-tag">.jpdbml.json</p>
+      <p class="f-n">配置を覚える</p>
+      <p class="f-p">テーブル位置やカラム幅は隣に置くサイドカーファイルに保存します。<code>.dbml</code> 本体には見た目の情報を書き込みません。</p>
+    </div>
+  </div>
+</section>
+
+<section class="first wrap">
+  <h2>初回起動の許可</h2>
+  <div class="warn">
+    <div class="warn-top">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 4.5l8.5 15H3.5l8.5-15z"/><path d="M12 10v3.5M12 16.4v.1"/></svg>
+      <span>現在のビルドはコード署名をしていないため、初回起動時に OS が警告を出します。一度許可すれば、次からは通常どおり起動します。</span>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <p class="step-h">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.05 12.54c.02-2.3 1.87-3.4 1.95-3.45-1.06-1.56-2.71-1.77-3.3-1.8-1.4-.14-2.74.82-3.45.82-.72 0-1.82-.8-2.99-.78-1.54.02-2.96.9-3.75 2.27-1.6 2.78-.41 6.9 1.15 9.16.76 1.1 1.67 2.34 2.87 2.3 1.15-.05 1.58-.75 2.97-.75 1.38 0 1.77.74 2.98.72 1.23-.02 2.02-1.12 2.78-2.23.87-1.27 1.23-2.5 1.25-2.57-.03-.01-2.4-.92-2.43-3.66zM14.8 5.4c.63-.77 1.06-1.83.94-2.9-.91.04-2.02.61-2.68 1.37-.58.68-1.1 1.77-.96 2.81 1.02.08 2.06-.52 2.7-1.28z"/></svg>
+          <b>macOS</b>
+        </p>
+        <ol>
+          <li><code>.dmg</code> を開き、JPDBMLEditor を<em>アプリケーション</em>フォルダにドラッグします。</li>
+          <li>「開発元を検証できないため開けません」と出ても、<em>「ゴミ箱に入れる」は押さないでください</em>。</li>
+          <li>アプリを<em>右クリック</em>（または <kbd>Control</kbd> + クリック）して<em>「開く」</em>を選びます。</li>
+          <li>ダイアログでもう一度<em>「開く」</em>を押します。</li>
+        </ol>
+      </div>
+      <div class="step">
+        <p class="step-h">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5.5l7.5-1v7.2H3V5.5zm0 13l7.5 1v-7.1H3v6.1zM11.4 4.3L21 3v8.7h-9.6V4.3zm0 8.4H21V21l-9.6-1.3v-7z"/></svg>
+          <b>Windows</b>
+        </p>
+        <ol>
+          <li>インストーラを実行します。</li>
+          <li>「WindowsによってPCが保護されました」と出たら<em>「詳細情報」</em>をクリックします。</li>
+          <li>下に現れる<em>「実行」</em>を押すと、インストールが始まります。</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap foot">
+    <img src="images/icon.png" alt="">
+    <p>JPDBMLEditor — Tauri 2 / React 19 / @dbml/core</p>
+    <span class="foot-sp"></span>
+    <a href="https://github.com/Junpeiwada/JPDBMLEditor">リポジトリ</a>
+    <a href="https://github.com/Junpeiwada/JPDBMLEditor/releases">すべてのリリース</a>
+    <a href="https://github.com/Junpeiwada/JPDBMLEditor/blob/main/LICENSE">MIT</a>
+  </div>
+</footer>
+
+<script>
+// ヒーローの FK 線を、実際のカラム行の座標から引く。
+// orders.user_id（参照元）の左端 → users.id（参照先）の左端 を結ぶ。
+(function () {
+  var er = document.getElementById('er');
+  var path = document.getElementById('er-path');
+  if (!er || !path) return;
+
+  function draw() {
+    var box = er.getBoundingClientRect();
+    var from = document.getElementById('from-uid').getBoundingClientRect();
+    var to = document.getElementById('to-id').getBoundingClientRect();
+    if (!box.width) return;
+
+    // 両カードの左端より外側を通して接続する（カードの上に線を重ねない）
+    var x1 = from.left - box.left, y1 = from.top - box.top + from.height / 2;
+    var x2 = to.left - box.left,  y2 = to.top - box.top + to.height / 2;
+    var lane = Math.min(x1, x2) - 20;          // 迂回する縦のレーン
+    if (lane < 4) lane = 4;
+
+    path.setAttribute('d',
+      'M ' + x1 + ' ' + y1 +
+      ' C ' + lane + ' ' + y1 + ', ' + lane + ' ' + y2 + ', ' + x2 + ' ' + y2);
+  }
+
+  draw();
+  if (window.ResizeObserver) new ResizeObserver(draw).observe(er);
+  window.addEventListener('resize', draw);
+  // Web フォント適用で行位置がずれるため、読み込み後に再計算
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(draw);
+})();
+
+// 最新リリースの資産名を GitHub API から解決する。
+// 失敗しても各ボタンは releases/latest（HTML に直書き）のままなので必ず機能する。
+(function () {
+  var REPO = 'Junpeiwada/JPDBMLEditor';
+  var targets = [
+    { btn: 'btn-arm', file: 'f-arm', match: function (n) { return /aarch64\.dmg$/.test(n); } },
+    { btn: 'btn-x64', file: 'f-x64', match: function (n) { return /x64\.dmg$/.test(n); } },
+    { btn: 'btn-win', file: 'f-win', match: function (n) { return /x64-setup\.exe$/.test(n); } }
+  ];
+
+  fetch('https://api.github.com/repos/' + REPO + '/releases/latest', {
+    headers: { Accept: 'application/vnd.github+json' }
+  })
+    .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(function (rel) {
+      var assets = rel.assets || [];
+      if (rel.tag_name) document.getElementById('ver').textContent = rel.tag_name;
+
+      targets.forEach(function (t) {
+        var hit = assets.filter(function (a) { return t.match(a.name); })[0];
+        if (!hit) return;
+        var btn = document.getElementById(t.btn);
+        btn.href = hit.browser_download_url;
+        btn.setAttribute('download', '');
+        var mb = hit.size ? ' · ' + (hit.size / 1048576).toFixed(1) + ' MB' : '';
+        document.getElementById(t.file).textContent = hit.name + mb;
+      });
+    })
+    .catch(function () { /* 直書きの releases/latest リンクで足りるため何もしない */ });
+})();
+</script>
+
+</body>
+</html>
