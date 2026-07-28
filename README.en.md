@@ -1,6 +1,6 @@
 # JPDBMLEditor
 
-[日本語版 README はこちら](README.md)
+[日本語版 README はこちら](README.md) | **[Website & downloads](https://junpeiwada.github.io/JPDBMLEditor/)**
 
 A desktop viewer / editor for [DBML](https://dbml.dbdiagram.io/home) (Database Markup Language), built with Tauri.
 
@@ -22,8 +22,8 @@ Existing VSCode extensions render ER diagrams poorly and the VSCode shell feels 
 
 ## Install
 
-Download the latest build from the [Releases page](https://github.com/Junpeiwada/JPDBMLEditor/releases/latest)
-and pick the file for your OS:
+Pick your OS on the [download page](https://junpeiwada.github.io/JPDBMLEditor/#download), or grab the
+files directly from the [Releases page](https://github.com/Junpeiwada/JPDBMLEditor/releases/latest):
 
 | OS | File | Notes |
 | --- | --- | --- |

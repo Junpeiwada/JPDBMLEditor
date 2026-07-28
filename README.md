@@ -1,6 +1,6 @@
 # JPDBMLEditor
 
-[English README is here](README.en.md)
+[English README is here](README.en.md) ｜ **[サイト・ダウンロード](https://junpeiwada.github.io/JPDBMLEditor/)**
 
 [DBML](https://dbml.dbdiagram.io/home)（Database Markup Language）のデスクトップビューア/エディタです。Tauri 製です。
 
@@ -22,8 +22,8 @@
 
 ## インストール
 
-[Releases ページ](https://github.com/Junpeiwada/JPDBMLEditor/releases/latest)から最新版をダウンロードし、
-自分の OS 用のファイルを選んでください。
+[ダウンロードページ](https://junpeiwada.github.io/JPDBMLEditor/#download)から OS を選んでダウンロードできます。
+[Releases ページ](https://github.com/Junpeiwada/JPDBMLEditor/releases/latest)から直接選ぶこともできます。
 
 | OS | ファイル | 備考 |
 | --- | --- | --- |
